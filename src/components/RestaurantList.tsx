@@ -8,12 +8,16 @@ import RestaurantCard from './RestaurantCard';
 interface RestaurantListProps {
   restaurants: Restaurant[];
   onSelectRestaurant: (restaurant: Restaurant) => void;
+  isFavorite?: (id: string) => boolean;
+  onToggleFavorite?: (id: string) => void;
   onResetFilters: () => void;
 }
 
 export default function RestaurantList({
   restaurants,
   onSelectRestaurant,
+  isFavorite,
+  onToggleFavorite,
   onResetFilters,
 }: RestaurantListProps) {
   if (restaurants.length === 0) {
@@ -47,6 +51,8 @@ export default function RestaurantList({
           key={restaurant.id}
           restaurant={restaurant}
           onSelect={onSelectRestaurant}
+          isFavorite={isFavorite?.(restaurant.id)}
+          onToggleFavorite={onToggleFavorite}
         />
       ))}
     </div>

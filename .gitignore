@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 *.log
+
+out/
+.app-build-parked-api/
+.app-build-parked-og.png

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { openExternal, directionsUrl } from '@/lib/platform';
 import { X, MapPin, Phone, Copy, Check, AlertTriangle, ExternalLink, Utensils, Award, Sparkles, Calendar, Clock } from 'lucide-react';
 import { Restaurant } from '@/types/restaurant';
 import { formatDistance } from '@/utils/distance';
@@ -9,11 +10,15 @@ import { getRestaurantImage } from '@/utils/imageHelper';
 interface RestaurantDetailModalProps {
   restaurant: Restaurant | null;
   onClose: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (id: string) => void;
 }
 
 export default function RestaurantDetailModal({
   restaurant,
   onClose,
+  isFavorite = false,
+  onToggleFavorite,
 }: RestaurantDetailModalProps) {
   const [copied, setCopied] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -30,9 +35,10 @@ export default function RestaurantDetailModal({
     }
   };
 
-  const kakaoMapSearchUrl = `https://map.kakao.com/link/search/${encodeURIComponent(
-    restaurant.name
-  )}`;
+  const kakaoMapSearchUrl =
+    restaurant.lat && restaurant.lng
+      ? directionsUrl(restaurant.name, restaurant.lat, restaurant.lng)
+      : `https://map.kakao.com/link/search/${encodeURIComponent(restaurant.name)}`;
 
   const imageUrl = getRestaurantImage(restaurant.id, restaurant.category, restaurant.imageUrl);
   const isOldStore = (restaurant.yearsInBusiness ?? 0) >= 10;
@@ -263,6 +269,7 @@ export default function RestaurantDetailModal({
         <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center gap-2.5">
           <a
             href={kakaoMapSearchUrl}
+            onClick={(e) => { e.preventDefault(); openExternal(kakaoMapSearchUrl); }}
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 py-3 bg-yellow-400 hover:bg-yellow-500 active:bg-yellow-600 text-gray-900 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 shadow-xs transition-colors"
@@ -270,6 +277,16 @@ export default function RestaurantDetailModal({
             <span>카카오맵에서 길찾기</span>
             <ExternalLink className="w-3.5 h-3.5" />
           </a>
+          {onToggleFavorite && (
+            <button
+              type="button"
+              onClick={() => onToggleFavorite(restaurant.id)}
+              aria-label="즐겨찾기"
+              className="px-4 py-3 rounded-xl border border-rose-200 bg-white text-rose-500 font-bold text-sm"
+            >
+              {isFavorite ? '♥' : '♡'}
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}

@@ -15,12 +15,19 @@ import { SAMPLE_RESTAURANTS } from '@/data/sampleRestaurants';
 import { DEFAULT_LOCATION } from '@/data/locations';
 import { CategoryType, DistanceRadius, RegionLocation, Restaurant, ThemeFilterType } from '@/types/restaurant';
 import { calculateDistance } from '@/utils/distance';
+import { apiUrl, getCurrentPosition } from '@/lib/platform';
+import { useFavorites } from '@/lib/favorites';
+import { useNativeBridge } from '@/lib/nativeBridge';
+import { handleAuthDeepLink } from '@/lib/auth';
 
 export default function Home() {
   // 데이터 및 소스 상태
   const [restaurantsList, setRestaurantsList] = useState<Restaurant[]>(SAMPLE_RESTAURANTS);
   const [dataSource, setDataSource] = useState<'supabase' | 'local_dataset'>('local_dataset');
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const { favoriteIds, isFavorite, toggleFavorite } = useFavorites();
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
 
   // 위치 상태 (주의: 사용자의 위치 정보는 프론트엔드 상태로만 관리되며, 서버나 DB에 일체 저장되지 않습니다)
   const [currentLocation, setCurrentLocation] = useState<RegionLocation>(DEFAULT_LOCATION);
@@ -50,6 +57,7 @@ export default function Home() {
 
   const fetchRestaurants = useCallback(async () => {
     setIsLoadingData(true);
+    setLoadError(null);
     try {
       const params = new URLSearchParams({
         lat: String(currentLocation.lat),
@@ -59,7 +67,8 @@ export default function Home() {
       });
       if (selectedCategory !== '전체') params.set('category', selectedCategory);
       if (debouncedQuery) params.set('q', debouncedQuery);
-      const res = await fetch('/api/restaurants?' + params.toString());
+      const res = await fetch(apiUrl('/api/restaurants?' + params.toString()));
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       if (res.ok) {
         const json = await res.json();
         if (json.data && Array.isArray(json.data)) {
@@ -68,7 +77,8 @@ export default function Home() {
         }
       }
     } catch (e) {
-      console.warn('API Fetch fallback to default dataset:', e);
+      console.warn('API Fetch failed:', e);
+      setLoadError(typeof navigator !== 'undefined' && !navigator.onLine ? '인터넷 연결이 없어요. 연결을 확인하고 다시 시도해 주세요.' : '음식점 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
     } finally {
       setIsLoadingData(false);
     }
@@ -80,58 +90,39 @@ export default function Home() {
 
 
   // 브라우저 위치 권한 요청 및 '내 주변 찾기' 핸들러
-  const handleRequestGPS = useCallback(() => {
-    // 1. 브라우저 지원 여부 확인
-    if (!navigator.geolocation) {
-      const msg = '사용 중인 브라우저가 위치 정보(Geolocation)를 지원하지 않습니다. 아래에서 원하시는 동네를 직접 선택해 주세요.';
-      setPermissionDeniedReason(msg);
-      setIsLocationModalOpen(true);
-      return;
-    }
-
+  const handleRequestGPS = useCallback(async () => {
     setIsLoadingGPS(true);
     setPermissionDeniedReason(null);
-
-    // 2. 권한 요청 및 위치 획득
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        // 사용자 현재 위치는 DB에 전송하지 않고 오직 클라이언트 상태로만 유지
-        setCurrentLocation({
-          id: 'gps-current',
-          city: '현재 위치',
-          district: 'GPS 탐색',
-          neighborhood: '내 주변',
-          lat: latitude,
-          lng: longitude,
-        });
-        setIsUsingGPS(true);
-        setIsLoadingGPS(false);
-        setPermissionDeniedReason(null);
-      },
-      (error) => {
-        setIsLoadingGPS(false);
-        setIsUsingGPS(false);
-
-        let errorMsg = '위치 정보를 가져올 수 없습니다.';
-        if (error.code === error.PERMISSION_DENIED) {
-          errorMsg = '브라우저 위치 권한이 거부되었습니다. 아래 목록에서 원하시는 동네를 직접 선택해 주세요.';
-        } else if (error.code === error.POSITION_UNAVAILABLE) {
-          errorMsg = '현재 디바이스의 위치 정보를 확인할 수 없습니다. 지역을 직접 선택해 주세요.';
-        } else if (error.code === error.TIMEOUT) {
-          errorMsg = '위치 확인 응답 시간이 초과되었습니다. 다시 시도하거나 직접 동네를 선택해 주세요.';
-        }
-
-        setPermissionDeniedReason(errorMsg);
-        setIsLocationModalOpen(true);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      }
-    );
+    const r = await getCurrentPosition();
+    setIsLoadingGPS(false);
+    if (r.ok) {
+      // user location stays in client state only (never sent to DB)
+      setCurrentLocation({ id: 'gps-current', city: '현재 위치', district: 'GPS 탐색', neighborhood: '내 주변', lat: r.lat, lng: r.lng });
+      setIsUsingGPS(true);
+      return;
+    }
+    setIsUsingGPS(false);
+    const msg = {
+      denied: '위치 권한이 거부되었습니다. 아래 목록에서 원하시는 동네를 직접 선택해 주세요.',
+      timeout: '위치 확인 시간이 초과되었습니다. 다시 시도하거나 동네를 직접 선택해 주세요.',
+      unavailable: '현재 위치를 확인할 수 없습니다. 동네를 직접 선택해 주세요.',
+      unsupported: '이 기기에서는 위치 기능을 쓸 수 없어요. 동네를 직접 선택해 주세요.',
+    }[r.reason];
+    setPermissionDeniedReason(msg);
+    setIsLocationModalOpen(true);
   }, []);
+
+  // Android back button: close the top-most layer first, then exit
+  useNativeBridge({
+    onBack: () => {
+      if (selectedRestaurant) { setSelectedRestaurant(null); return true; }
+      if (isRouletteOpen) { setIsRouletteOpen(false); return true; }
+      if (isLocationModalOpen) { setIsLocationModalOpen(false); return true; }
+      if (viewMode !== 'list') { setViewMode('list'); return true; }
+      return false;
+    },
+    onDeepLink: (url) => { handleAuthDeepLink(url); },
+  });
 
   // 수동 지역 선택 시 핸들러
   const handleSelectLocation = useCallback((region: RegionLocation) => {
@@ -175,9 +166,10 @@ export default function Home() {
         if (!ok) return false;
       }
       if (onlyOpenNow && item.statusInfo?.status !== 'OPEN') return false;
+      if (onlyFavorites && !favoriteIds.includes(item.id)) return false;
       return true;
     });
-  }, [restaurantsList, dataSource, currentLocation, selectedRadius, selectedTheme, onlyOpenNow, selectedCategory, searchQuery]);
+  }, [restaurantsList, dataSource, currentLocation, selectedRadius, selectedTheme, onlyOpenNow, selectedCategory, searchQuery, onlyFavorites, favoriteIds]);
 
   return (
     <div className="min-h-screen bg-slate-100/70 sm:py-6 flex justify-center text-gray-900">
@@ -241,6 +233,26 @@ export default function Home() {
             totalFilteredCount={filteredRestaurants.length}
           />
 
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setOnlyFavorites((v) => !v)}
+              className={'text-xs font-bold px-3 py-1.5 rounded-full border ' + (onlyFavorites ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-gray-700 border-gray-200')}
+            >
+              {onlyFavorites ? '♥' : '♡'} 즐겨찾기만 ({favoriteIds.length})
+            </button>
+            {isLoadingData && <span className="text-xs text-gray-500 animate-pulse">불러오는 중...</span>}
+          </div>
+
+          {loadError && (
+            <div className="p-4 rounded-2xl bg-white border border-red-200 text-center">
+              <p className="text-sm font-semibold text-red-700">{loadError}</p>
+              <button type="button" onClick={() => fetchRestaurants()} className="mt-3 px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-bold">
+                다시 시도
+              </button>
+            </div>
+          )}
+
           {/* 목록 뷰 vs 지도 뷰 */}
           {viewMode === 'list' ? (
             <div className="flex flex-col gap-3">
@@ -255,6 +267,8 @@ export default function Home() {
                 restaurants={filteredRestaurants}
                 onSelectRestaurant={setSelectedRestaurant}
                 onResetFilters={handleResetFilters}
+                isFavorite={isFavorite}
+                onToggleFavorite={toggleFavorite}
               />
             </div>
           ) : (
@@ -296,6 +310,8 @@ export default function Home() {
         <RestaurantDetailModal
           restaurant={selectedRestaurant}
           onClose={() => setSelectedRestaurant(null)}
+          isFavorite={selectedRestaurant ? isFavorite(selectedRestaurant.id) : false}
+          onToggleFavorite={toggleFavorite}
         />
       </main>
     </div>

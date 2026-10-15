@@ -9,11 +9,15 @@ import { getRestaurantImage } from '@/utils/imageHelper';
 interface RestaurantCardProps {
   restaurant: Restaurant;
   onSelect: (restaurant: Restaurant) => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (id: string) => void;
 }
 
 export default function RestaurantCard({
   restaurant,
   onSelect,
+  isFavorite = false,
+  onToggleFavorite,
 }: RestaurantCardProps) {
   const [imageError, setImageError] = useState(false);
   const fallbackUrl = getRestaurantImage(restaurant.id, restaurant.category, restaurant.imageUrl);
@@ -43,6 +47,17 @@ export default function RestaurantCard({
     >
       {/* 상단 음식점 대표 사진 배너 */}
       <div className="relative w-full h-36 bg-gray-100 overflow-hidden">
+        {onToggleFavorite && (
+          <button
+            type="button"
+            aria-label={isFavorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+            onClick={(e) => { e.stopPropagation(); onToggleFavorite(restaurant.id); }}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="absolute top-2 right-2 z-20 w-9 h-9 rounded-full bg-white/90 shadow flex items-center justify-center text-lg text-rose-500"
+          >
+            {isFavorite ? '♥' : '♡'}
+          </button>
+        )}
         {!imageError ? (
           <>
             {slides.map((s, i) => (

@@ -19,7 +19,7 @@ export default function BottomNav({
   onOpenRoulette,
 }: BottomNavProps) {
   return (
-    <div className="fixed bottom-4 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
+    <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
       <div className="pointer-events-auto bg-gray-900/95 text-white backdrop-blur-md px-2 py-1.5 rounded-full shadow-2xl border border-white/10 flex items-center gap-1.5">
         {/* 목록 버튼 */}
         <button
