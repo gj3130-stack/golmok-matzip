@@ -31,7 +31,7 @@ export default function Header({
             <div>
               <div className="flex items-center gap-1.5">
                 <h1 className="font-bold text-base text-gray-900 tracking-tight">
-                  동네맛zip
+                  골목맛집
                 </h1>
                 <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-sm">
                   LIVE

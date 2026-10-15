@@ -258,7 +258,7 @@ export default function MapView({
               <span>카카오 개발자 플랫폼 도메인 설정 안내</span>
             </div>
             <p className="mt-1 text-[11px] text-amber-700 leading-relaxed">
-              카카오 지도 API 키는 정상 등록되었으며, 실제 지도 타일을 로드하려면 Kakao Developers 콘솔의 <strong>[내 애플리케이션 &gt; 앱 설정 &gt; 플랫폼 &gt; Web]</strong>에 <code>http://localhost:3000</code>을 등록해 주시면 바로 작동합니다.
+              카카오 지도 API 키는 정상 등록되었으며, 실제 지도 타일을 로드하려면 Kakao Developers 콘솔의 <strong>[내 애플리케이션 &gt; 앱 설정 &gt; 플랫폼 &gt; Web]</strong>에 <code>현재 사이트 주소</code>를 등록해 주시면 바로 작동합니다.
             </p>
           </div>
         )}

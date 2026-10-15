@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "동네맛zip - 우리 동네 공공데이터 음식점 찾기",
+  title: "골목맛집 - 우리 동네 공공데이터 음식점 찾기",
   description: "공공데이터포털 기반 우리 동네 음식점 반경 검색 및 위치 기반 탐색 서비스 (샘플 프로토타입)",
 };
 
