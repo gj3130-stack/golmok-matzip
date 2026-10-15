@@ -13,8 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "골목맛집 - 우리 동네 공공데이터 음식점 찾기",
-  description: "공공데이터포털 기반 우리 동네 음식점 반경 검색 및 위치 기반 탐색 서비스 (샘플 프로토타입)",
+  metadataBase: new URL('https://golmok-matzip-app.vercel.app'),
+  title: '골목맛집 - 우리 동네 맛집 지도',
+  description: '내 주변 500m·1km·3km 안의 음식점과 카페를 지도로 바로 찾아보세요.',
+  openGraph: { siteName: '골목맛집', locale: 'ko_KR', type: 'website' },
 };
 
 export const viewport: Viewport = {
